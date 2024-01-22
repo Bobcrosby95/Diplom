@@ -8,6 +8,7 @@ public class ShopTest {
 
     @Test
     void aqaShopTest1() {
+
         open("http://localhost:8080");
     }
 }
