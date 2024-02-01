@@ -18,3 +18,6 @@
 6. В консоли для запуска автотестов используется команда ./gradlew clean test.
 
 ## Ссылки на проектную документацию
+1. План автоматизации https://github.com/Bobcrosby95/Diplom/blob/main/docs/Plan.md.
+2. Отчётный документ по итогам тестирования https://github.com/Bobcrosby95/Diplom/blob/main/docs/Report.md.
+3. Отчётный документ по итогам автоматизации https://github.com/Bobcrosby95/Diplom/blob/main/docs/Summary.md.
