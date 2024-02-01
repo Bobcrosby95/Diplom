@@ -14,16 +14,9 @@ public class DataHelper {
     }
 
     public static String generateCardNumber() {
-        return "4444 4444 4444 4441";
+        return faker.numerify("#### #### #### ####");
     }
 
-    public static String generateCardNumber2() {
-        return "4444 4444 4444 4442";
-    }
-
-    public static String generateCardNumber3() {
-        return "4444 4444 4444 4443";
-    }
 
     public static String generateName(String locale) {
         var faker = new Faker(new Locale(locale));
@@ -35,19 +28,32 @@ public class DataHelper {
     }
 
     public static String generateYear() {
-        int currentYear = LocalDate.now().getYear() % 100;
-        return String.valueOf(currentYear);
+        return LocalDate.now().format(DateTimeFormatter.ofPattern("yy"));
+    }
+
+    public static String statusCard() {
+        return "APPROVED";
     }
 
     public static String generateCVC() {
         return faker.numerify("###");
     }
 
+    public static CardInfo generateRandom() {
+        return new CardInfo(generateCardNumber(), generateName("en"), generateMonth(), generateYear(), generateCVC());
+    }
+
     @Value
     public static class CardInfo {
+        String cardNumber;
         String name;
         String month;
         String year;
         String cvc;
+    }
+
+    @Value
+    public static class StatusCard {
+        String statusCard;
     }
 }
