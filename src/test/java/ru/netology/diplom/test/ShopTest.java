@@ -5,6 +5,8 @@ import com.codeborne.selenide.logevents.SelenideLogger;
 import io.qameta.allure.selenide.AllureSelenide;
 import org.junit.jupiter.api.*;
 import ru.netology.diplom.data.DataHelper;
+import ru.netology.diplom.data.SQLHelper;
+import ru.netology.diplom.page.LoginPage;
 
 import java.time.Duration;
 
@@ -14,6 +16,8 @@ import static com.codeborne.selenide.Selenide.$;
 import static com.codeborne.selenide.Selenide.open;
 
 public class ShopTest {
+    LoginPage loginPage;
+
     @BeforeAll
     static void setUpAll() {
         SelenideLogger.addListener("allure", new AllureSelenide());
@@ -26,7 +30,7 @@ public class ShopTest {
 
     @BeforeEach
     void openHost() {
-        open("http://localhost:8080");
+        loginPage = open("http://localhost:8080", LoginPage.class);
     }
 
     //Позитивные сценарии.
@@ -34,39 +38,27 @@ public class ShopTest {
     @Test
     @DisplayName("Покупка с помощью дебетовой карты с валидными данными.")
     void aqaShopTest1() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".notification__content")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Операция одобрена Банком."));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateAccurateCard();
+        debitPage.validCard(validCard);
+        debitPage.answerBank("Операция одобрена Банком.");
+        var statusCard = SQLHelper.getStatusCard();
+        String status = statusCard.getStatusCard();
+        String expectedStatus = "APPROVED";
+        Assertions.assertEquals(expectedStatus, status);
     }
 
     @Test
     @DisplayName("Покупка в кредит с валидными данными.")
     void aqaShopTest2() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".notification__content")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Операция одобрена Банком."));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateAccurateCard();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.answerBankCredit("Операция одобрена Банком.");
+        var statusCard = SQLHelper.getStatusCardCredit();
+        String status = statusCard.getStatusCardCredit();
+        String expectedStatus = "APPROVED";
+        Assertions.assertEquals(expectedStatus, status);
     }
 
     //Негетивные сценарии с использованием дебетовой карты.
@@ -74,343 +66,167 @@ public class ShopTest {
     @Test
     @DisplayName("1.Покупка тура с дебетовой картой с использованием отказанной карты.")
     void aqaShopTest3() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4442");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".notification__content")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Операция одобрена Банком."));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateRejectedCard();
+        debitPage.validCard(validCard);
+        debitPage.answerBank("Ошибка! Банк отказал в проведении операции.");
+        var statusCard = SQLHelper.getStatusCard();
+        String status = statusCard.getStatusCard();
+        String expectedStatus = "DECLINED";
+        Assertions.assertEquals(expectedStatus, status);
     }
 
     @Test
     @DisplayName("2.Покупка тура с дебетовой картой с использованием невалидных данных (с прошедшим годом).")
     void aqaShopTest4() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4442");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue("21");
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Истёк срок действия карты"));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateNoYear();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Истёк срок действия карты");
     }
 
     @Test
     @DisplayName("3.Покупка тура с дебетовой картой с использованием невалидных данных (с несуществующим месяцем).")
     void aqaShopTest5() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue("13");
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверно указан срок действия карты"));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateNoMonth();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Неверно указан срок действия карты");
     }
 
     @Test
     @DisplayName("4.Покупка тура с дебетовой картой с использованием невалидных данных (данные владельца на кириллице).")
     void aqaShopTest6() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue("Дмитрий Петров");
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateCyrillicName();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("5.Покупка тура с дебетовой картой с использованием невалидных данных (поле владелец цифры).")
     void aqaShopTest7() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue("123456");
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateNumbersName();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("6.Покупка тура с дебетовой картой с использованием невалидных данных (поле владелец спецсимволы).")
     void aqaShopTest8() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue("!№;%:?");
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateSymbolsName();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("7.Покупка тура с дебетовой картой с использованием невалидных данных (номер карты нули).")
     void aqaShopTest9() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("0000 0000 0000 0000");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".notification__content")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Ошибка! Банк отказал в проведении операции."));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateNullCard();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("8.Покупка тура с дебетовой картой с использованием невалидных данных (поле месяц заполнить нулями).")
     void aqaShopTest10() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue("00");
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверно указан срок действия карты"));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateNullMonth();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Неверно указан срок действия карты");
     }
 
     @Test
     @DisplayName("9.Покупка тура с дебетовой картой с использованием невалидных данных (пустое поле номер карты).")
     void aqaShopTest11() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateNoCard();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("10.Покупка тура с дебетовой картой с использованием невалидных данных (пустое поле владелец).")
     void aqaShopTest12() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue("");
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Поле обязательно для заполнения"));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateNoName();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Поле обязательно для заполнения");
     }
 
     @Test
     @DisplayName("11.Покупка тура с дебетовой картой с использованием невалидных данных (пустое поле месяц).")
     void aqaShopTest13() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue("");
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateEmptyMonth();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("12.Покупка тура с дебетовой картой с использованием невалидных данных (пустое поле год).")
     void aqaShopTest14() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4442");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue("");
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateEmptyYear();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("13.Покупка тура с дебетовой картой с использованием невалидных данных (пустое поле cvc).")
     void aqaShopTest15() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue("");
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateEmptyCvc();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("14.Покупка тура с дебетовой картой с использованием невалидных данных (пустые поля).")
     void aqaShopTest16() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("");
-        $(".input__control[placeholder='08']").setValue("");
-        $(".input__control[placeholder='22']").setValue("");
-        $(".input__control[value='']").setValue("");
-        $(".input__control[placeholder='999']").setValue("");
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateEmpty();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("15.Покупка тура с дебетовой картой с использованием невалидных данных (заполнить поле «cvc» двумя цифрами).")
     void aqaShopTest17() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue("36");
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateCvcTwo();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("16.Покупка тура с дебетовой картой с использованием невалидных данных (заполнить поле «cvc» нулями).")
     void aqaShopTest18() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue("000");
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateNullCvc();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
-    @DisplayName("17.Покупка тура с дебетовой картой с использованием невалидных данных (пустое поле год).")
+    @DisplayName("17.Покупка тура с дебетовой картой с использованием невалидных данных (в поле год нули).")
     void aqaShopTest19() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4442");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue("00");
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Истёк срок действия карты"));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateNullYear();
+        debitPage.validCard(validCard);
+        debitPage.verifyErrorNotification("Истёк срок действия карты");
     }
 
     @Test
     @DisplayName("18.Покупка тура с дебетовой картой с использованием невалидных данных (карта не из набора).")
     void aqaShopTest20() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("3333 3333 3333 3333");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".notification__content")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Ошибка! Банк отказал в проведении операции."));
+        var debitPage = loginPage.debitBuy();
+        var validCard = DataHelper.generateRandom();
+        debitPage.validCard(validCard);
+        debitPage.answerBank("Ошибка! Банк отказал в проведении операции.");
     }
 
     //Негативные сценарии покупки тура в кредит.
@@ -418,342 +234,166 @@ public class ShopTest {
     @Test
     @DisplayName("1.Покупка тура в кредит с использованием невалидных данных (пустые поля).")
     void aqaShopTest21() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("");
-        $(".input__control[placeholder='08']").setValue("");
-        $(".input__control[placeholder='22']").setValue("");
-        $(".input__control[value='']").setValue("");
-        $(".input__control[placeholder='999']").setValue("");
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateEmpty();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("2.Покупка тура в кредит с использованием невалидных данных (с прошедшим годом).")
     void aqaShopTest22() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue("21");
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Истёк срок действия карты"));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateNoYear();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Истёк срок действия карты");
     }
 
     @Test
     @DisplayName("3.Покупка тура в кредит с использованием невалидных данных (с несуществующим месяцем).")
     void aqaShopTest23() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue("13");
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверно указан срок действия карты"));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateNoMonth();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Неверно указан срок действия карты");
     }
 
     @Test
     @DisplayName("4.Покупка тура в кредит с использованием невалидных данных (данные владельца на кириллице).")
     void aqaShopTest24() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue("Дмитрий Петров");
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateCyrillicName();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("5.Покупка тура в кредит с использованием невалидных данных (поле владелец цифры).")
     void aqaShopTest25() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue("123456");
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateNumbersName();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("6.Покупка тура в кредит с использованием невалидных данных (поле владелец спецсимволы).")
     void aqaShopTest26() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue("!№;%:?");
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateSymbolsName();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("7.Покупка тура в кредит с использованием невалидных данных (номер карты нули).")
     void aqaShopTest27() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("0000 0000 0000 0000");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".notification__content")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Ошибка! Банк отказал в проведении операции."));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateNullCard();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("8.Покупка тура в кредит с использованием невалидных данных (поле месяц заполнить нулями).")
     void aqaShopTest28() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue("00");
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверно указан срок действия карты"));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateNullMonth();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Неверно указан срок действия карты");
     }
 
     @Test
     @DisplayName("9.Покупка тура в кредит с использованием невалидных данных (пустое поле номер карты).")
     void aqaShopTest29() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateNoCard();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("10.Покупка тура в кредит с использованием невалидных данных (пустое поле владелец).")
     void aqaShopTest30() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue("");
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Поле обязательно для заполнения"));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateNoName();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Поле обязательно для заполнения");
     }
 
     @Test
     @DisplayName("11.Покупка тура в кредит с использованием невалидных данных (пустое поле месяц).")
     void aqaShopTest31() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue("");
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateEmptyMonth();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("12.Покупка тура в кредит с использованием невалидных данных (пустое поле год).")
     void aqaShopTest32() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4442");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue("");
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateEmptyYear();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("13.Покупка тура в кредит с использованием невалидных данных (пустое поле cvc).")
     void aqaShopTest33() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue("");
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateEmptyCvc();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("14.Покупка тура в кредит с использованием невалидных данных (заполнить поле «cvc» двумя цифрами).")
     void aqaShopTest34() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue("36");
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateCvcTwo();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("15.Покупка тура в кредит с использованием отказанной карты.")
     void aqaShopTest35() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4442");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".notification__content")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Операция одобрена Банком."));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateRejectedCard();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.answerBankCredit("Ошибка! Банк отказал в проведении операции.");
+        var statusCard = SQLHelper.getStatusCardCredit();
+        String status = statusCard.getStatusCardCredit();
+        String expectedStatus = "DECLINED";
+        Assertions.assertEquals(expectedStatus, status);
     }
 
     @Test
     @DisplayName("16.Покупка тура в кредит с использованием невалидных данных (заполнить поле «cvc» нулями).")
     void aqaShopTest36() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue("000");
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Неверный формат"));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateNullCvc();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Неверный формат");
     }
 
     @Test
     @DisplayName("17.Покупка тура в кредит с использованием невалидных данных (заполнить поле «год» нулями).")
     void aqaShopTest37() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("4444 4444 4444 4441");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue("00");
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".input__sub")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Истёк срок действия карты"));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateNullYear();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.verifyErrorNotification("Истёк срок действия карты");
     }
 
     @Test
     @DisplayName("18.Покупка тура в кредит с использованием невалидных данных (карта не из набора).")
     void aqaShopTest38() {
-        String month = DataHelper.generateMonth();
-        String year = DataHelper.generateYear();
-        String cvc = DataHelper.generateCVC();
-        String name = DataHelper.generateName("en");
-        $(byText("Купить в кредит")).click();
-        $(".input__control[placeholder='0000 0000 0000 0000']").setValue("3333 3333 3333 3333");
-        $(".input__control[placeholder='08']").setValue(month);
-        $(".input__control[placeholder='22']").setValue(year);
-        $(".input__control[value='']").setValue(name);
-        $(".input__control[placeholder='999']").setValue(cvc);
-        $(byText("Продолжить")).click();
-        $(".notification__content")
-                .shouldBe(visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.exactText("Ошибка! Банк отказал в проведении операции."));
+        var creditPage = loginPage.creditBuy();
+        var validCardCredit = DataHelper.generateRandom();
+        creditPage.validCardCredit(validCardCredit);
+        creditPage.answerBankCredit("Ошибка! Банк отказал в проведении операции.");
     }
 }
