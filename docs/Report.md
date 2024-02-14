@@ -12,9 +12,10 @@
 
 В результате тестирования успешно пройдены 22 тест-кейсов, 16 тест-кейсов упали из-за найденных багов, по найденным багам были заведены issues.
 
-![Снимок экрана (98).png](..%2F..%2F..%2FUsers%2FStrel%2FPictures%2FScreenshots%2F%D1%ED%E8%EC%EE%EA%20%FD%EA%F0%E0%ED%E0%20%2898%29.png)
-![Снимок экрана (99).png](..%2F..%2F..%2FUsers%2FStrel%2FPictures%2FScreenshots%2F%D1%ED%E8%EC%EE%EA%20%FD%EA%F0%E0%ED%E0%20%2899%29.png)
-![Снимок экрана (100).png](..%2F..%2F..%2FUsers%2FStrel%2FPictures%2FScreenshots%2F%D1%ED%E8%EC%EE%EA%20%FD%EA%F0%E0%ED%E0%20%28100%29.png)
+![Снимок экрана (100)](https://github.com/Bobcrosby95/Diplom/assets/143875175/e3924e0f-8426-437d-9397-1eaadd150a77)
+![Снимок экрана (99)](https://github.com/Bobcrosby95/Diplom/assets/143875175/9cf503e8-a23b-4dad-a8df-45683e2da814)
+![Снимок экрана (98)](https://github.com/Bobcrosby95/Diplom/assets/143875175/30c97d6a-7419-449d-a00d-a4a87b37230e)
+
 
 4. Общие рекомендации
 
