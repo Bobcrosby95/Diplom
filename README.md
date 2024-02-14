@@ -7,7 +7,8 @@
 ## Prerequisites
 Для реализации проекта необходимы:
 - Браузер (Google Chrome),
-- IntelliJ IDEA.
+- IntelliJ IDEA,
+- Docker Desctop.
 
 ## Установка и запуск
 1. В IntelliJ IDEA был подготовлен файл docker-compose.yml (https://github.com/Bobcrosby95/Diplom/blob/main/docker-compose.yml) для запуска контейнеров.
