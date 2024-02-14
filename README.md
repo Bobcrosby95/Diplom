@@ -16,7 +16,7 @@
 4. В терминале IntelliJ IDEA вводится команда для запуска контейнеров docker-compose up.
 5. В терминале IntelliJ IDEA вводится команда для запуска эмулятора npm start.
 6. В IntelliJ IDEA запускается джарник командой java "-Dspring.datasource.url=jdbc:mysql://localhost:3306/app" -jar artifacts/aqa-shop.jar и командой java "-Dspring.datasource.url=jdbc:postgresql://localhost:5432/app" -jar artifacts/aqa-shop.jar.
-7. В консоли для запуска автотестов используется команда ./gradlew clean test.
+7. В консоли для запуска автотестов используется команда ./gradlew clean test "-Ddb.url=jdbc:mysql://localhost:3306/app" и ./gradlew clean test "-Ddb.url=jdbc:postgres://localhost:5432/app".
 
 ## Ссылки на проектную документацию
 1. План автоматизации https://github.com/Bobcrosby95/Diplom/blob/main/docs/Plan.md.
